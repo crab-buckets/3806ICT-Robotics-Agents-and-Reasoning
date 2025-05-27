@@ -68,4 +68,3 @@ Follow these steps to install and run the project:
 - The delivery bot starts and delivers at the home base (start of the grid).
 - Only one order is handled at a time.
 - Obstacles are static.
-- All code and logic have been refactored from a submarine search and rescue scenario to a delivery bot (Uber Eats) scenario.
