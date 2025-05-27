@@ -1,16 +1,16 @@
 #define Visited -1;
 #define Unvisited 0;
-#define DeliveryBot 1;
-#define Obstacle 2;
-#define OrderPickup 3;
+#define Sub 1;
+#define Hostile 2;
+#define Survivor 3;
 
-#define BOT_HOME_X 0;
-#define BOT_HOME_Y 0;
+#define SUB_HOME_X 0;
+#define SUB_HOME_Y 0;
 #define Rows 8;
 #define Cols 8;
-#define maxCapacity 1;
+#define maxCapacity 2;
 
-var world[Rows][Cols]:{Visited..OrderPickup} = [
+var world[Rows][Cols]:{Visited..Survivor} = [
 -1, -1, -1, -1, -1, -1, -1, -1, 
 0, 0, 0, -1, 0, 0, 2, -1, 
 0, 0, 2, -1, 0, 0, 0, -1, 
@@ -21,7 +21,7 @@ var world[Rows][Cols]:{Visited..OrderPickup} = [
 0, 0, 0, 0, -1, 2, 0, 2
 ];
 
-// Position of delivery bot
-var xpos:{0..Rows-1} = 0;
-var ypos:{0..Cols-1} = 0;
-var onBoard:{0..maxCapacity} = 0;
+// Position of sub
+var xpos:{0..Rows-1} = 7;
+var ypos:{0..Cols-1} = 4;
+var onBoard:{0..maxCapacity} = 1;

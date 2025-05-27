@@ -1,18 +1,17 @@
 #define VISITED -1
 #define EMPTY 0
-#define SUB 1
-#define HOSTILE 2
-#define SURVIVOR 3
+#define DELIVERY_BOT 1
+#define OBSTACLE 2
+#define ORDER_PICKUP 3
 
-#define SUB_START_X 0
-#define SUB_START_Y 0
+#define BOT_START_X 0
+#define BOT_START_Y 0
 
 #define BOARD_H 8
 #define BOARD_W 8
 
-#define SUB_CAP 2
-#define SURVIVOR_COUNT 5
-#define HOSTILE_COUNT 8
+#define ORDER_COUNT 5
+#define OBSTACLE_COUNT 8
 
-#define HOSTILE_DETECTION_RANGE 2
-#define SURVIVOR_DETECTION_RANGE 1
+#define OBSTACLE_DETECTION_RANGE 2
+#define ORDER_DETECTION_RANGE 1

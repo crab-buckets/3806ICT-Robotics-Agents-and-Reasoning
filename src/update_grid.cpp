@@ -40,7 +40,7 @@ int numHostiles = 0;
 bool submarineSpawned = false;
 // home directory and model directory
 std::string homeDir = getenv("HOME");
-std::string modelDir = homeDir + "/catkin_ws/src/3806ict_assignment_3/models/";
+std::string modelDir = homeDir + "/catkin_ws/src/3806ICT-Robotics-Agents-and-Reasoning/models/";
 
 // comparison function for Point
 struct ComparePoints
@@ -83,8 +83,8 @@ int main(int argc, char **argv)
 	// creating a client to the get_model_state service, so that the sensors have access to the bot's
 	// x, y coordinates at all times for emulation purposes (to try simulate actual sensors)
 	bot_location = n.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
-	// pretend we're a submarine :)
-	srv.request.model_name = "submarine";
+	// pretend we're a delivery bot :)
+	srv.request.model_name = "delivery_bot";
 
 	// Initialize current grid to all empty squares
 	for (int i = 0; i < BOARD_H; ++i)
@@ -119,244 +119,170 @@ int main(int argc, char **argv)
 
 gazebo_msgs::SpawnModel createSpawnRequest(int modelType, geometry_msgs::Point position)
 {
-	// initialise the message for the spawn_sdf_model service
-	gazebo_msgs::SpawnModel spawn;
-	std::string modelPath;
-	if (modelType == SURVIVOR)
-	{
-		// bowls are used to model survivors
-		// Create a unique name from numSurvivors (e.g. bowl0, bowl1)
-		spawn.request.model_name = "bowl" + std::to_string(numSurvivors);
-		// increment the number of survivors
-		numSurvivors++;
-		// create path to sdf model in repository
-		modelPath = modelDir + "bowl/model.sdf";
-	}
-	else if (modelType == HOSTILE)
-	{
-		// cardboard boxes are used to model hostiles
-		// Create a unique name from numHostiles (e.g. cardboard_box0, cardboard_box1)
-		spawn.request.model_name = "cardboard_box" + std::to_string(numHostiles); // box = hostile
-		// increment the number of hostiles
-		numHostiles++;
-		// create path to sdf model in repository
-		modelPath = modelDir + "cardboard_box/model.sdf";
-	}
-	else if (modelType == SUB)
-	{
-		// the turtlebot burger from turtlebot_sim package is used to model the submarine
-		spawn.request.model_name = "submarine";
-		// create path to sdf model in repository
-		modelPath = modelDir + "turtlebot3_burger/model.sdf";
-	}
-
-	// open the file containing the sdf model
-	std::ifstream t(modelPath);
-	if (!t.is_open())
-	{
-		ROS_WARN("Could not open model file: %s", modelPath.c_str());
-		exit(1);
-	}
-	// read into string for the spawn request
-	std::string modelXml((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
-	t.close();
-	spawn.request.model_xml = modelXml;
-	spawn.request.initial_pose.position = position;
-	return spawn;
+    gazebo_msgs::SpawnModel spawn;
+    std::string modelPath;
+    if (modelType == ORDER_PICKUP) {
+        spawn.request.model_name = "bowl" + std::to_string(numSurvivors);
+        numSurvivors++;
+        modelPath = modelDir + "bowl/model.sdf";
+    } else if (modelType == OBSTACLE) {
+        spawn.request.model_name = "cardboard_box" + std::to_string(numHostiles);
+        numHostiles++;
+        modelPath = modelDir + "cardboard_box/model.sdf";
+    } else if (modelType == DELIVERY_BOT) {
+        spawn.request.model_name = "delivery_bot";
+        modelPath = modelDir + "turtlebot3_burger/model.sdf";
+    }
+    std::ifstream t(modelPath);
+    if (!t.is_open()) {
+        ROS_WARN("Could not open model file: %s", modelPath.c_str());
+        exit(1);
+    }
+    std::string modelXml((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
+    t.close();
+    spawn.request.model_xml = modelXml;
+    spawn.request.initial_pose.position = position;
+    return spawn;
 }
 
+// updateGrid: update logic for delivery bot scenario
 bool updateGrid(assignment_3::UpdateGrid::Request &req, assignment_3::UpdateGrid::Response &res)
 {
-	// Initialise new grid
-	std_msgs::Int32MultiArray read_grid = req.grid;
-	gazebo_msgs::SetModelState set;
-	gazebo_msgs::DeleteModel del;
-	gazebo_msgs::SpawnModel spawn;
-
-	// loop through all coordinates in board
-	for (int i = 0; i < BOARD_H; ++i)
-		for (int j = 0; j < BOARD_W; ++j)
-		{
-			int oldIndex = currentGrid[i][j];
-			int newIndex = read_grid.data[i * BOARD_W + j];
-			if (oldIndex != newIndex)
-			{
-				// Get the corresponding coordinates
-				geometry_msgs::Point point = coordinates[i][j];
-
-				// was empty, now a survivor (only occurs in the initial generation)
-				if (oldIndex == EMPTY && newIndex == SURVIVOR)
-				{
-					// Spawn a "Survivor"
-					spawn = createSpawnRequest(SURVIVOR, point);
-					objectPositions[point] = spawn.request.model_name;
-					spawnClient.call(spawn);
-				}
-				// was a survivor, now the sub. must delete the survivor and replace
-				// with the sub
-				if (oldIndex == SURVIVOR && newIndex == SUB)
-				{
-					// Delete the "Survivor"
-					del.request.model_name = objectPositions[point];
-					deleteClient.call(del);
-					objectPositions.erase(point);
-					// Move the "Sub"
-					set.request.model_state.model_name = "submarine";
-					set.request.model_state.pose.position = point;
-					setClient.call(set);
-				}
-				// old position was empty, now a hostile, only occurs in spawn condition
-				if (oldIndex == EMPTY && newIndex == HOSTILE)
-				{
-					// Spawn a "Hostile"
-					spawn = createSpawnRequest(HOSTILE, point);
-					objectPositions[point] = spawn.request.model_name;
-					spawnClient.call(spawn);
-				}
-				// old position was empty or visited, now it holds the sub, so move/spawn the sub
-				if ((oldIndex == EMPTY || oldIndex == VISITED) && newIndex == SUB)
-				{
-					if (submarineSpawned)
-					{
-						// Move the "Sub"
-						ROS_INFO("Moving sub to pos: (%.0f, %.0f)", point.x, point.y);
-						set.request.model_state.model_name = "submarine";
-						set.request.model_state.pose.position = point;
-						setClient.call(set);
-					}
-					else
-					{
-						// Spawn the "Sub"
-						spawn = createSpawnRequest(SUB, point);
-						objectPositions[point] = spawn.request.model_name;
-						spawnClient.call(spawn);
-						submarineSpawned = true;
-					}
-				}
-				// Update current grid
-				currentGrid[i][j] = newIndex;
-			}
-		}
-
-	// Return the updated grid
-	res.altered_grid = req.grid;
-	return true;
+    std_msgs::Int32MultiArray read_grid = req.grid;
+    gazebo_msgs::SetModelState set;
+    gazebo_msgs::DeleteModel del;
+    gazebo_msgs::SpawnModel spawn;
+    for (int i = 0; i < BOARD_H; ++i)
+        for (int j = 0; j < BOARD_W; ++j) {
+            int oldIndex = currentGrid[i][j];
+            int newIndex = read_grid.data[i * BOARD_W + j];
+            if (oldIndex != newIndex) {
+                geometry_msgs::Point point = coordinates[i][j];
+                if (oldIndex == EMPTY && newIndex == ORDER_PICKUP) {
+                    spawn = createSpawnRequest(ORDER_PICKUP, point);
+                    objectPositions[point] = spawn.request.model_name;
+                    bool success = spawnClient.call(spawn);
+                    if (!success) {
+                        ROS_ERROR("Failed to spawn ORDER_PICKUP model: %s", spawn.request.model_name.c_str());
+                    }
+                }
+                if (oldIndex == ORDER_PICKUP && newIndex == DELIVERY_BOT) {
+                    del.request.model_name = objectPositions[point];
+                    deleteClient.call(del);
+                    objectPositions.erase(point);
+                    set.request.model_state.model_name = "delivery_bot";
+                    set.request.model_state.pose.position = point;
+                    setClient.call(set);
+                }
+                if (oldIndex == EMPTY && newIndex == OBSTACLE) {
+                    spawn = createSpawnRequest(OBSTACLE, point);
+                    objectPositions[point] = spawn.request.model_name;
+                    bool success = spawnClient.call(spawn);
+                    if (!success) {
+                        ROS_ERROR("Failed to spawn OBSTACLE model: %s", spawn.request.model_name.c_str());
+                    }
+                }
+                if ((oldIndex == EMPTY || oldIndex == VISITED) && newIndex == DELIVERY_BOT) {
+                    if (submarineSpawned) {
+                        ROS_INFO("Moving delivery bot to pos: (%.0f, %.0f)", point.x, point.y);
+                        set.request.model_state.model_name = "delivery_bot";
+                        set.request.model_state.pose.position = point;
+                        setClient.call(set);
+                    } else {
+                        spawn = createSpawnRequest(DELIVERY_BOT, point);
+                        objectPositions[point] = spawn.request.model_name;
+                        bool success = spawnClient.call(spawn);
+                        if (!success) {
+                            ROS_ERROR("Failed to spawn DELIVERY_BOT model: %s", spawn.request.model_name.c_str());
+                        }
+                        submarineSpawned = true;
+                    }
+                }
+                currentGrid[i][j] = newIndex;
+            }
+        }
+    res.altered_grid = req.grid;
+    return true;
 }
 
 bool hostileSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res)
 {
-	// initialise all to false
-	res.objectNorth = false;
-	res.objectSouth = false;
-	res.objectWest = false;
-	res.objectEast = false;
-	res.objectDetected = false;
-
-	// get current x and y position from gazebo response
-	if (!bot_location.call(srv))
-	{
-		ROS_WARN("Failed to call ROS GetModelState service to get bot location");
-		return false;
-	}
-
-	// extract x and y from the response. Round as they are given as doubles, we want
-	// integers to index into the arrays
-	int x = std::round(srv.response.pose.position.x);
-	int y = std::round(srv.response.pose.position.y);
-	int range = req.sensorRange;
-
-	// Initialize radar arrays
-	res.northRadar = std::vector<int32_t>(range, 0);
-	res.southRadar = std::vector<int32_t>(range, 0);
-	res.eastRadar = std::vector<int32_t>(range, 0);
-	res.westRadar = std::vector<int32_t>(range, 0);
-
-	// Check if there are hostiles detected within the sensor range
-	for (int i = 1; i <= range; ++i)
-	{
-		if (x - i >= 0 && currentGrid[x - i][y] == HOSTILE)
-		{ // North
-			res.objectNorth = true;
-			res.northRadar[i - 1] = 1;
-		}
-		if (x + i < BOARD_H && currentGrid[x + i][y] == HOSTILE)
-		{ // South
-			res.objectSouth = true;
-			res.southRadar[i - 1] = 1;
-		}
-		if (y - i >= 0 && currentGrid[x][y - i] == HOSTILE)
-		{ // West
-			res.objectWest = true;
-			res.westRadar[i - 1] = 1;
-		}
-		if (y + i < BOARD_W && currentGrid[x][y + i] == HOSTILE)
-		{ // East
-			res.objectEast = true;
-			res.eastRadar[i - 1] = 1;
-		}
-	}
-
-	// objectDetected provides easy api to check if anything was detected
-	if (res.objectNorth || res.objectEast || res.objectSouth || res.objectWest)
-		res.objectDetected = true;
-	return true;
+    res.objectNorth = false;
+    res.objectSouth = false;
+    res.objectWest = false;
+    res.objectEast = false;
+    res.objectDetected = false;
+    if (!bot_location.call(srv)) {
+        ROS_WARN("Failed to call ROS GetModelState service to get bot location");
+        return false;
+    }
+    int x = std::round(srv.response.pose.position.x);
+    int y = std::round(srv.response.pose.position.y);
+    int range = req.sensorRange;
+    res.northRadar = std::vector<int32_t>(range, 0);
+    res.southRadar = std::vector<int32_t>(range, 0);
+    res.eastRadar = std::vector<int32_t>(range, 0);
+    res.westRadar = std::vector<int32_t>(range, 0);
+    for (int i = 1; i <= range; ++i) {
+        if (x - i >= 0 && currentGrid[x - i][y] == OBSTACLE) {
+            res.objectNorth = true;
+            res.northRadar[i - 1] = 1;
+        }
+        if (x + i < BOARD_H && currentGrid[x + i][y] == OBSTACLE) {
+            res.objectSouth = true;
+            res.southRadar[i - 1] = 1;
+        }
+        if (y - i >= 0 && currentGrid[x][y - i] == OBSTACLE) {
+            res.objectWest = true;
+            res.westRadar[i - 1] = 1;
+        }
+        if (y + i < BOARD_W && currentGrid[x][y + i] == OBSTACLE) {
+            res.objectEast = true;
+            res.eastRadar[i - 1] = 1;
+        }
+    }
+    if (res.objectNorth || res.objectEast || res.objectSouth || res.objectWest)
+        res.objectDetected = true;
+    return true;
 }
 
 bool survivorSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res)
 {
-	// initialise all to false
-	res.objectNorth = false;
-	res.objectSouth = false;
-	res.objectWest = false;
-	res.objectEast = false;
-	res.objectDetected = false;
-
-	// get current x and y position from gazebo response
-	if (!bot_location.call(srv))
-	{
-		ROS_WARN("Failed to call ROS GetModelState service to get bot location");
-		return false;
-	}
-
-	// extract x and y from the response. Round as they are given as doubles, we want
-	// integers to index into the arrays
-	int x = std::round(srv.response.pose.position.x);
-	int y = std::round(srv.response.pose.position.y);
-	int range = req.sensorRange;
-
-	// Initialize radar arrays
-	res.northRadar = std::vector<int32_t>(range, 0);
-	res.southRadar = std::vector<int32_t>(range, 0);
-	res.eastRadar = std::vector<int32_t>(range, 0);
-	res.westRadar = std::vector<int32_t>(range, 0);
-
-	// Check if there are survivors detected within the sensor range
-	for (int i = 1; i <= range; ++i)
-	{
-		if (x - i >= 0 && currentGrid[x - i][y] == SURVIVOR)
-		{ // North
-			res.objectNorth = true;
-			res.northRadar[i - 1] = 1;
-		}
-		if (x + i < BOARD_H && currentGrid[x + i][y] == SURVIVOR)
-		{ // South
-			res.objectSouth = true;
-			res.southRadar[i - 1] = 1;
-		}
-		if (y - i >= 0 && currentGrid[x][y - i] == SURVIVOR)
-		{ // West
-			res.objectWest = true;
-			res.westRadar[i - 1] = 1;
-		}
-		if (y + i < BOARD_W && currentGrid[x][y + i] == SURVIVOR)
-		{ // East
-			res.objectEast = true;
-			res.eastRadar[i - 1] = 1;
-		}
-	}
-
-	// objectDetected provides easy api to check if anything was detected
-	if (res.objectNorth || res.objectEast || res.objectSouth || res.objectWest)
-		res.objectDetected = true;
-	return true;
+    res.objectNorth = false;
+    res.objectSouth = false;
+    res.objectWest = false;
+    res.objectEast = false;
+    res.objectDetected = false;
+    if (!bot_location.call(srv)) {
+        ROS_WARN("Failed to call ROS GetModelState service to get bot location");
+        return false;
+    }
+    int x = std::round(srv.response.pose.position.x);
+    int y = std::round(srv.response.pose.position.y);
+    int range = req.sensorRange;
+    res.northRadar = std::vector<int32_t>(range, 0);
+    res.southRadar = std::vector<int32_t>(range, 0);
+    res.eastRadar = std::vector<int32_t>(range, 0);
+    res.westRadar = std::vector<int32_t>(range, 0);
+    for (int i = 1; i <= range; ++i) {
+        if (x - i >= 0 && currentGrid[x - i][y] == ORDER_PICKUP) {
+            res.objectNorth = true;
+            res.northRadar[i - 1] = 1;
+        }
+        if (x + i < BOARD_H && currentGrid[x + i][y] == ORDER_PICKUP) {
+            res.objectSouth = true;
+            res.southRadar[i - 1] = 1;
+        }
+        if (y - i >= 0 && currentGrid[x][y - i] == ORDER_PICKUP) {
+            res.objectWest = true;
+            res.westRadar[i - 1] = 1;
+        }
+        if (y + i < BOARD_W && currentGrid[x][y + i] == ORDER_PICKUP) {
+            res.objectEast = true;
+            res.eastRadar[i - 1] = 1;
+        }
+    }
+    if (res.objectNorth || res.objectEast || res.objectSouth || res.objectWest)
+        res.objectDetected = true;
+    return true;
 }

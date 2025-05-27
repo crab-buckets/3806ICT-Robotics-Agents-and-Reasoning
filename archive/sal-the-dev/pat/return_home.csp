@@ -2,5 +2,5 @@
 #include "path.csp";
 
 // prioritise visited positions when returning home to avoid
-// bumping into obstacles or running into new orders
+// bumping into obstacles or running into new survivors
 #assert VisitedMove() reaches home;
