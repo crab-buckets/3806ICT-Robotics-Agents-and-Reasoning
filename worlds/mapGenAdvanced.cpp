@@ -2,21 +2,23 @@
 #include <iostream>
 #include <cstdlib> 
 #include <ctime>
+#include "sdfGen.hpp"
 
  // This did not turn out like i expected but i guess it could be used to train
 //  perhaps using the 'walls' as the goals ??? maybe 
 
 char obstacle = '#';
-char emptySpace = '.';
+char emptySpace = ' ';
 char goal = 'G';
 
 std::vector<std::vector<char>> mapGenFunction(int mapDimensionX, int mapDimensionY, int fullNess) {
     srand(time(0));
 
+
     // Create the map filled with obstacles
     std::vector<std::vector<char>> map(mapDimensionX, std::vector<char>(mapDimensionY, obstacle));
     int totalToCarve = static_cast<float>(fullNess) / 100 * (mapDimensionX * mapDimensionY);
-
+    
     struct CarvedCell {
         int x;
         int y;
@@ -78,15 +80,46 @@ std::vector<std::vector<char>> mapGenFunction(int mapDimensionX, int mapDimensio
 
 
 int main(){
-  std::cout << "Welcome to my thing how cool" << std::endl;
-  int sizeX = 30;
-  int sizeY = 30;
+  std::cout << "Welcome to my thing how cool, this program has no fool protection" << std::endl;
+  std::cout << "so enter everything correctly" << std::endl;
+  int userInput = 0;
+  int sizeX = 10;
+  int sizeY = 10;
+  int fullness = 30;
+  char preview = 'n';
+
+  // user prompting
+  std::cout << "enter value for X (integer): ";
+  std::cin >> sizeX;
+  std::cout << std::endl << "enter the value for y (Also int): ";
+  std::cin >> sizeY;
+  std::cout << std::endl << "enter the fullness (int 1-100): ";
+  std::cin >> fullness;
+  std::cout << "preview grid y/n: ";
+  std::cin >> preview;
+
+
   std::vector<std::vector<char>> mapToPrint = mapGenFunction(sizeX, sizeY, 30);
 
-  for (int i = 0; i < sizeX; i++){
-    for (int j = 0; j < sizeY; j++){
-      std::cout << mapToPrint[i][j] << ' ';
+  if (preview = 'y'){
+    for (int i = 0; i < sizeX; i++){
+      for (int j = 0; j < sizeY; j++){
+        std::cout << mapToPrint[i][j] << ' ';
+      }
+      std::cout << std::endl;
     }
-    std::cout << std::endl;
   }
+
+  std::string sdfContent = generateSDF(mapToPrint);
+  std::cout << "Please name the file, no spaces no . just the name:" << std::endl;
+  std::string worldName;
+  std::cin >> worldName;
+  std::ofstream outFile(worldName +".world");
+  outFile << "<sdf version='1.6'>\n";
+  outFile << "  <world name='default'>\n";
+  outFile << sdfContent;
+  outFile << "  </world>\n</sdf>\n";
+  outFile.close();
+  std::cin.get();
 }
+
