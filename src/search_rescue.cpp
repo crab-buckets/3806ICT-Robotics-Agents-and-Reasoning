@@ -57,7 +57,7 @@ void detect_hostiles(assignment_3::Sensor &hostile_srv, int (&curr_world)[BOARD_
 // takes the message given by the survivor sensors and updates the robot's internal representation (curr_world)
 // with SURVIVOR where they are detected. Returns the number of new/unique survivors that have been detected,
 // so that survivors are not double counted.
-int detect_survivors(assignment_3::Sensor &survivor_srv, int (&curr_world)[BOARD_H][BOARD_W], int &bot_x, int &bot_y);
+int detect_orders(assignment_3::Sensor &survivor_srv, int (&curr_world)[BOARD_H][BOARD_W], int &bot_x, int &bot_y);
 // returns the new coordinates of the robot after it executes the command given by move.
 // e.g. (0, 0) & 'moveRight' -> (0, 1)
 std::pair<int, int> update_position(std::string &move, int &x, int &y);
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 	ros::NodeHandle n;
 	ros::ServiceClient gridClient = n.serviceClient<assignment_3::UpdateGrid>("/update_grid");
 	ros::ServiceClient obstacleSensorClient = n.serviceClient<assignment_3::Sensor>("/obstacle_sensor");
-	ros::ServiceClient survivorSensorClient = n.serviceClient<assignment_3::Sensor>("/survivor_sensor");
+	ros::ServiceClient orderSensorClient = n.serviceClient<assignment_3::Sensor>("/order_sensor");
 	assignment_3::UpdateGrid grid_srv;
 	assignment_3::Sensor hostile_srv;
 	assignment_3::Sensor survivor_srv;
@@ -121,13 +121,13 @@ int main(int argc, char *argv[])
 	std::queue<std::string> q;
 	hostile_srv.request.sensorRange = OBSTACLE_DETECTION_RANGE;
 	survivor_srv.request.sensorRange = ORDER_DETECTION_RANGE;
-	if (!obstacleSensorClient.call(hostile_srv) || !survivorSensorClient.call(survivor_srv)) {
+	if (!obstacleSensorClient.call(hostile_srv) || !orderSensorClient.call(survivor_srv)) {
 		ROS_ERROR("Failed to call sensor services");
 		return EXIT_FAILURE;
 	}
 
 	detect_hostiles(hostile_srv, current_world, bot_x, bot_y);
-	int newOrdersDetected = detect_survivors(survivor_srv, current_world, bot_x, bot_y);
+	int newOrdersDetected = detect_orders(survivor_srv, current_world, bot_x, bot_y);
 	if (newOrdersDetected) {
 		ROS_INFO("New order(s) detected!");
 		orders_seen += newOrdersDetected;
@@ -194,12 +194,12 @@ int main(int argc, char *argv[])
 		}
 		bot_x = new_x;
 		bot_y = new_y;
-		if (!obstacleSensorClient.call(hostile_srv) || !survivorSensorClient.call(survivor_srv)) {
+		if (!obstacleSensorClient.call(hostile_srv) || !orderSensorClient.call(survivor_srv)) {
 			ROS_ERROR("Failed to call sensor services");
 			return EXIT_FAILURE;
 		}
 		detect_hostiles(hostile_srv, current_world, bot_x, bot_y);
-		newOrdersDetected = detect_survivors(survivor_srv, current_world, bot_x, bot_y);
+		newOrdersDetected = detect_orders(survivor_srv, current_world, bot_x, bot_y);
 		if (newOrdersDetected) {
 			ROS_INFO("New order(s) detected!");
 			orders_seen += newOrdersDetected;
@@ -233,7 +233,7 @@ void detect_hostiles(assignment_3::Sensor &hostile_srv, int (&curr_world)[BOARD_
                 curr_world[bot_x + 1 + i][bot_y] = OBSTACLE;
 }
 
-int detect_survivors(assignment_3::Sensor &order_srv, int (&curr_world)[BOARD_H][BOARD_W], int &bot_x, int &bot_y)
+int detect_orders(assignment_3::Sensor &order_srv, int (&curr_world)[BOARD_H][BOARD_W], int &bot_x, int &bot_y)
 {
     // order detection
     int newOrdersDetected = 0;

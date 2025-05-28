@@ -33,8 +33,8 @@ ros::ServiceClient spawnClient;
 ros::ServiceClient deleteClient;
 ros::ServiceClient setClient;
 
-// initialise number of spawned survivors and hostiles
-int numSurvivors = 0;
+// initialise number of spawned orders and obstacles
+int numOrders = 0;
 int numHostiles = 0;
 // initialise check to see if submarine has already been spawned (its moved if already spawned)
 bool submarineSpawned = false;
@@ -55,7 +55,7 @@ struct ComparePoints
 	}
 };
 
-// Dictionary with coordinates as key and survivor/hostile as value
+// Dictionary with coordinates as key and orders/obstacles as value
 std::map<geometry_msgs::Point, std::string, ComparePoints> objectPositions;
 
 // -- function declarations --
@@ -72,7 +72,7 @@ bool obstacleSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Re
 // and returns an array of detected objects, corresponding to the distance away from the bot's
 // current position in east, north, west, south. The bot's current position is taken from
 // gazebo get_model_state in an attempt to model a real sensor
-bool survivorSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res);
+bool orderSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res);
 
 // main
 int main(int argc, char **argv)
@@ -108,8 +108,8 @@ int main(int argc, char **argv)
 	deleteClient = n.serviceClient<gazebo_msgs::DeleteModel>("gazebo/delete_model");
 	// advertise the hostile sensor emulator for the robot to call when required
 	ros::ServiceServer HostileSenService = n.advertiseService("obstacle_sensor", obstacleSensor);
-	// advertise the survivor sensor emulator for the robot to call when required
-	ros::ServiceServer SurvivorSenService = n.advertiseService("survivor_sensor", survivorSensor);
+	// advertise the order sensor emulator for the robot to call when required
+	ros::ServiceServer orderSenService = n.advertiseService("order_sensor", orderSensor);
 	// advertise the update_grid sensor emulator. This is responsible for updating gazebo
 	// with new locations of the objects
 	ros::ServiceServer updateGridService = n.advertiseService("update_grid", updateGrid);
@@ -122,8 +122,8 @@ gazebo_msgs::SpawnModel createSpawnRequest(int modelType, geometry_msgs::Point p
     gazebo_msgs::SpawnModel spawn;
     std::string modelPath;
     if (modelType == ORDER_PICKUP) {
-        spawn.request.model_name = "bowl" + std::to_string(numSurvivors);
-        numSurvivors++;
+        spawn.request.model_name = "bowl" + std::to_string(numOrders);
+        numOrders++;
         modelPath = modelDir + "bowl/model.sdf";
     } else if (modelType == OBSTACLE) {
         spawn.request.model_name = "cardboard_box" + std::to_string(numHostiles);
@@ -246,7 +246,7 @@ bool obstacleSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Re
     return true;
 }
 
-bool survivorSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res)
+bool orderSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res)
 {
     res.objectNorth = false;
     res.objectSouth = false;
