@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	ros::init(argc, argv, "testing");
 	ros::NodeHandle n;
 	ros::ServiceClient gridClient = n.serviceClient<assignment_3::UpdateGrid>("/update_grid");
-	ros::ServiceClient hostileSensorClient = n.serviceClient<assignment_3::Sensor>("/hostile_sensor");
+	ros::ServiceClient obstacleSensorClient = n.serviceClient<assignment_3::Sensor>("/obstacle_sensor");
 	ros::ServiceClient survivorSensorClient = n.serviceClient<assignment_3::Sensor>("/survivor_sensor");
 	assignment_3::UpdateGrid grid_srv;
 	assignment_3::Sensor hostile_srv;
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 	std::queue<std::string> q;
 	hostile_srv.request.sensorRange = OBSTACLE_DETECTION_RANGE;
 	survivor_srv.request.sensorRange = ORDER_DETECTION_RANGE;
-	if (!hostileSensorClient.call(hostile_srv) || !survivorSensorClient.call(survivor_srv)) {
+	if (!obstacleSensorClient.call(hostile_srv) || !survivorSensorClient.call(survivor_srv)) {
 		ROS_ERROR("Failed to call sensor services");
 		return EXIT_FAILURE;
 	}
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 		}
 		bot_x = new_x;
 		bot_y = new_y;
-		if (!hostileSensorClient.call(hostile_srv) || !survivorSensorClient.call(survivor_srv)) {
+		if (!obstacleSensorClient.call(hostile_srv) || !survivorSensorClient.call(survivor_srv)) {
 			ROS_ERROR("Failed to call sensor services");
 			return EXIT_FAILURE;
 		}

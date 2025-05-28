@@ -67,7 +67,7 @@ bool updateGrid(assignment_3::UpdateGrid::Request &req, assignment_3::UpdateGrid
 // and returns an array of detected objects, corresponding to the distance away from the bot's
 // current position in east, north, west, south. The bot's current position is taken from
 // gazebo get_model_state in an attempt to model a real sensor
-bool hostileSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res);
+bool obstacleSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res);
 // simulates something like a infrared sensor which detects objects. Can take variable sensorRange
 // and returns an array of detected objects, corresponding to the distance away from the bot's
 // current position in east, north, west, south. The bot's current position is taken from
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 	// create client for deleting models when updating/moving objcets
 	deleteClient = n.serviceClient<gazebo_msgs::DeleteModel>("gazebo/delete_model");
 	// advertise the hostile sensor emulator for the robot to call when required
-	ros::ServiceServer HostileSenService = n.advertiseService("hostile_sensor", hostileSensor);
+	ros::ServiceServer HostileSenService = n.advertiseService("obstacle_sensor", obstacleSensor);
 	// advertise the survivor sensor emulator for the robot to call when required
 	ros::ServiceServer SurvivorSenService = n.advertiseService("survivor_sensor", survivorSensor);
 	// advertise the update_grid sensor emulator. This is responsible for updating gazebo
@@ -205,7 +205,7 @@ bool updateGrid(assignment_3::UpdateGrid::Request &req, assignment_3::UpdateGrid
     return true;
 }
 
-bool hostileSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res)
+bool obstacleSensor(assignment_3::Sensor::Request &req, assignment_3::Sensor::Response &res)
 {
     res.objectNorth = false;
     res.objectSouth = false;
