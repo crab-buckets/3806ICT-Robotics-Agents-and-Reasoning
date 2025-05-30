@@ -4,8 +4,8 @@
 
 - **Alfie McNamee** | s5374969
 - **Ayush Lal** | s5409751
-- **Brendan Edser** | STUDENT_ID
-- **Harrison Keene** | STUDENT_ID
+- **Brendan Edser** | s5339653
+- **Harrison Keene** | s5258241
 
 ## Introduction
 
